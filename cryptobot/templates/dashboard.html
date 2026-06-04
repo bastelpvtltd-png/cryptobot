@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CryptoBot Live Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #080C14;
+    --surface:  #0D1421;
+    --card:     #111827;
+    --border:   #1E2D45;
+    --accent:   #00D4FF;
+    --green:    #00E676;
+    --red:      #FF1744;
+    --yellow:   #FFD740;
+    --muted:    #4A5568;
+    --text:     #E2E8F0;
+    --subtext:  #8892A0;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;min-height:100vh;overflow-x:hidden}
+
+  /* grid noise bg */
+  body::before{
+    content:'';position:fixed;inset:0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(0,212,255,0.03) 1px,transparent 1px);
+    background-size:40px 40px;pointer-events:none;z-index:0;
+  }
+
+  .wrap{position:relative;z-index:1;max-width:1400px;margin:0 auto;padding:24px 20px}
+
+  /* ── HEADER ── */
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;flex-wrap:wrap;gap:12px}
+  .logo{display:flex;align-items:center;gap:12px}
+  .logo-icon{width:44px;height:44px;background:linear-gradient(135deg,#00D4FF,#7B2FFF);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px}
+  .logo-text{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;letter-spacing:-0.5px}
+  .logo-text span{color:var(--accent)}
+  .header-right{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .scan-btn{background:linear-gradient(135deg,#00D4FF,#0099BB);color:#000;border:none;padding:10px 20px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:0.5px}
+  .scan-btn:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(0,212,255,0.4)}
+  .scan-btn:disabled{opacity:0.5;cursor:not-allowed}
+  .last-scan{font-size:11px;color:var(--subtext)}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:6px;animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+  /* ── STATS ROW ── */
+  .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px}
+  .stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 16px;position:relative;overflow:hidden;transition:border-color .2s}
+  .stat-card:hover{border-color:var(--accent)}
+  .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),transparent)}
+  .stat-label{font-size:10px;color:var(--subtext);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+  .stat-val{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;line-height:1}
+  .stat-val.green{color:var(--green)}
+  .stat-val.red{color:var(--red)}
+  .stat-val.yellow{color:var(--yellow)}
+  .stat-val.accent{color:var(--accent)}
+  .stat-sub{font-size:11px;color:var(--subtext);margin-top:5px}
+
+  /* ── TABS ── */
+  .tabs{display:flex;gap:4px;margin-bottom:20px;background:var(--surface);padding:4px;border-radius:10px;width:fit-content}
+  .tab{padding:8px 20px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--subtext);transition:all .2s;letter-spacing:0.5px;text-transform:uppercase;border:none;background:transparent}
+  .tab.active{background:var(--card);color:var(--accent);border:1px solid var(--border)}
+
+  /* ── TABLE ── */
+  .table-wrap{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .table-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+  .table-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:var(--accent)}
+  .table-count{font-size:11px;color:var(--subtext);background:var(--bg);padding:3px 10px;border-radius:20px;border:1px solid var(--border)}
+  table{width:100%;border-collapse:collapse}
+  th{font-size:10px;color:var(--subtext);text-transform:uppercase;letter-spacing:0.8px;padding:12px 16px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+  td{font-size:12px;padding:12px 16px;border-bottom:1px solid rgba(30,45,69,0.5);vertical-align:middle;white-space:nowrap}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:rgba(0,212,255,0.03)}
+
+  .coin-chip{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:13px}
+  .dir-badge{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:0.5px}
+  .dir-badge.long{background:rgba(0,230,118,0.15);color:var(--green);border:1px solid rgba(0,230,118,0.3)}
+  .dir-badge.short{background:rgba(255,23,68,0.15);color:var(--red);border:1px solid rgba(255,23,68,0.3)}
+
+  .outcome-badge{padding:3px 10px;border-radius:4px;font-size:11px;font-weight:700}
+  .outcome-badge.win{background:rgba(0,230,118,0.15);color:var(--green);border:1px solid rgba(0,230,118,0.3)}
+  .outcome-badge.loss{background:rgba(255,23,68,0.15);color:var(--red);border:1px solid rgba(255,23,68,0.3)}
+  .outcome-badge.be{background:rgba(255,215,64,0.15);color:var(--yellow);border:1px solid rgba(255,215,64,0.3)}
+  .outcome-badge.open{background:rgba(0,212,255,0.15);color:var(--accent);border:1px solid rgba(0,212,255,0.3)}
+
+  .pnl-pos{color:var(--green);font-weight:700}
+  .pnl-neg{color:var(--red);font-weight:700}
+  .pnl-zero{color:var(--yellow);font-weight:700}
+
+  .score-pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:var(--bg);border:1px solid var(--border)}
+
+  .reasons-cell{font-size:10px;color:var(--subtext);max-width:200px;overflow:hidden;text-overflow:ellipsis}
+
+  /* progress bar for open trades */
+  .progress-wrap{min-width:80px}
+  .progress-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:3px}
+  .progress-fill{height:100%;border-radius:2px;transition:width 0.5s}
+  .progress-fill.long{background:linear-gradient(90deg,var(--accent),var(--green))}
+  .progress-fill.short{background:linear-gradient(90deg,#FF1744,#FF6B6B)}
+
+  /* empty state */
+  .empty{padding:60px;text-align:center;color:var(--subtext)}
+  .empty-icon{font-size:48px;margin-bottom:12px;opacity:0.4}
+  .empty-text{font-size:14px}
+
+  /* error banner */
+  .error-banner{background:rgba(255,23,68,0.1);border:1px solid rgba(255,23,68,0.3);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:12px;color:var(--red);display:none}
+
+  /* scan overlay */
+  .scanning-bar{height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);position:fixed;top:0;left:0;right:0;z-index:999;display:none;animation:slide 1.5s infinite linear}
+  @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}background-size:50%}
+
+  /* scrollbar */
+  ::-webkit-scrollbar{width:4px;height:4px}
+  ::-webkit-scrollbar-track{background:var(--bg)}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+  @media(max-width:768px){
+    .stats-row{grid-template-columns:repeat(2,1fr)}
+    td,th{padding:8px 10px;font-size:11px}
+    .reasons-cell{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="scanning-bar" id="scanBar"></div>
+<div class="wrap">
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">⚡</div>
+      <div>
+        <div class="logo-text">Crypto<span>Bot</span></div>
+        <div style="font-size:10px;color:var(--subtext);letter-spacing:1px">LIVE SIGNAL ENGINE</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div>
+        <div style="font-size:12px"><span class="status-dot"></span><span id="scanStatus">Ready</span></div>
+        <div class="last-scan" id="lastScan">Last scan: —</div>
+      </div>
+      <button class="scan-btn" id="scanBtn" onclick="triggerScan()">⚡ SCAN NOW</button>
+    </div>
+  </header>
+
+  <div class="error-banner" id="errBanner"></div>
+
+  <!-- STATS ROW -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Balance</div>
+      <div class="stat-val accent" id="balance">$100.00</div>
+      <div class="stat-sub" id="pnlSub">P&L: $0.00</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">ROI</div>
+      <div class="stat-val" id="roi">0.00%</div>
+      <div class="stat-sub" id="availSub">Avail: $100.00</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Win Rate</div>
+      <div class="stat-val green" id="winRate">0%</div>
+      <div class="stat-sub" id="wrSub">0W / 0L / 0BE</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Open Trades</div>
+      <div class="stat-val yellow" id="openCount">0</div>
+      <div class="stat-sub">Max 5 concurrent</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Signals</div>
+      <div class="stat-val accent" id="totalSig">0</div>
+      <div class="stat-sub">All time</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('open')">Open Trades</button>
+    <button class="tab" onclick="showTab('history')">History</button>
+    <button class="tab" onclick="showTab('closed')">Closed</button>
+  </div>
+
+  <!-- OPEN TRADES -->
+  <div id="tab-open" class="table-wrap">
+    <div class="table-header">
+      <div class="table-title">🟢 Open Positions</div>
+      <div class="table-count" id="openCountLabel">0 trades</div>
+    </div>
+    <div style="overflow-x:auto">
+    <table>
+      <thead>
+        <tr>
+          <th>Coin</th><th>Dir</th><th>Score</th><th>Entry</th>
+          <th>TP1</th><th>TP2</th><th>SL</th><th>Alloc</th>
+          <th>R:R</th><th>Progress</th><th>Time</th><th>Reasons</th>
+        </tr>
+      </thead>
+      <tbody id="openBody"><tr><td colspan="12"><div class="empty"><div class="empty-icon">📡</div><div class="empty-text">No open trades. Click SCAN NOW</div></div></td></tr></tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div id="tab-history" class="table-wrap" style="display:none">
+    <div class="table-header">
+      <div class="table-title">📋 All Signals</div>
+      <div class="table-count" id="histCountLabel">0 signals</div>
+    </div>
+    <div style="overflow-x:auto">
+    <table>
+      <thead>
+        <tr>
+          <th>Coin</th><th>Dir</th><th>Score</th><th>HTF</th><th>Entry</th>
+          <th>TP1</th><th>SL</th><th>Alloc</th><th>P&L</th><th>Outcome</th><th>Time</th><th>Reasons</th>
+        </tr>
+      </thead>
+      <tbody id="histBody"><tr><td colspan="12"><div class="empty"><div class="empty-icon">📜</div><div class="empty-text">No signals yet</div></div></td></tr></tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- CLOSED -->
+  <div id="tab-closed" class="table-wrap" style="display:none">
+    <div class="table-header">
+      <div class="table-title">🔒 Closed Trades</div>
+      <div class="table-count" id="closedCountLabel">0 closed</div>
+    </div>
+    <div style="overflow-x:auto">
+    <table>
+      <thead>
+        <tr>
+          <th>Coin</th><th>Dir</th><th>Score</th><th>Entry</th>
+          <th>Alloc</th><th>P&L</th><th>Outcome</th><th>Open</th><th>Close</th><th>Reasons</th>
+        </tr>
+      </thead>
+      <tbody id="closedBody"><tr><td colspan="10"><div class="empty"><div class="empty-icon">🔒</div><div class="empty-text">No closed trades yet</div></div></td></tr></tbody>
+    </table>
+    </div>
+  </div>
+
+  <div style="margin-top:16px;font-size:10px;color:var(--muted);text-align:center">
+    Auto-refresh every 30s • Binance 1H candles • Score {MIN_SCORE}+ • Min R:R 1:1.8 • $100 simulated balance
+  </div>
+
+</div>
+
+<script>
+let currentTab = 'open';
+
+function showTab(t){
+  currentTab = t;
+  ['open','history','closed'].forEach(id=>{
+    document.getElementById('tab-'+id).style.display = id===t ? 'block' : 'none';
+    document.querySelectorAll('.tab')[['open','history','closed'].indexOf(id)].classList.toggle('active',id===t);
+  });
+}
+
+function fmt(n,decimals=4){ return parseFloat(n||0).toFixed(decimals) }
+function fmtUSD(n){ return '$'+parseFloat(n||0).toFixed(2) }
+
+function pnlClass(v){ return v>0?'pnl-pos':v<0?'pnl-neg':'pnl-zero' }
+function pnlStr(v){ return (v>0?'+':'')+fmtUSD(v) }
+
+function outcomeHTML(o){
+  if(o==='TP2_HIT') return '<span class="outcome-badge win">✅ WIN</span>';
+  if(o==='SL_HIT')  return '<span class="outcome-badge loss">❌ LOSS</span>';
+  if(o==='BREAKEVEN') return '<span class="outcome-badge be">🟡 BE</span>';
+  if(o==='OPEN')    return '<span class="outcome-badge open">🔵 OPEN</span>';
+  return `<span class="outcome-badge open">${o}</span>`;
+}
+
+function progressHTML(trade){
+  const e=trade.entry, tp2=trade.tp2, sl=trade.sl, dir=trade.direction;
+  // We don't have current price, show levels as progress
+  const range = dir==='LONG' ? tp2-sl : sl-tp2;
+  const tp1pct = range>0 ? Math.min(100, trade.tp1_pct/trade.sl_pct*50) : 50;
+  return `<div class="progress-wrap">
+    <div style="font-size:10px;color:var(--subtext)">SL ${trade.sl_pct}% / TP ${trade.tp1_pct}%</div>
+    <div class="progress-bar"><div class="progress-fill ${dir.toLowerCase()}" style="width:${tp1pct}%"></div></div>
+  </div>`;
+}
+
+async function fetchState(){
+  try{
+    const r = await fetch('/api/state');
+    const d = await r.json();
+
+    // Balance
+    const bal = parseFloat(d.balance);
+    const pnl = parseFloat(d.pnl);
+    document.getElementById('balance').textContent = fmtUSD(bal);
+    document.getElementById('balance').className = 'stat-val '+(pnl>=0?'green':'red');
+    document.getElementById('pnlSub').textContent = 'P&L: '+(pnl>=0?'+':'')+fmtUSD(pnl);
+    document.getElementById('pnlSub').style.color = pnl>=0?'var(--green)':'var(--red)';
+
+    // ROI
+    const roi = parseFloat(d.roi);
+    document.getElementById('roi').textContent = (roi>=0?'+':'')+roi.toFixed(2)+'%';
+    document.getElementById('roi').className = 'stat-val '+(roi>=0?'green':'red');
+    document.getElementById('availSub').textContent = 'Avail: '+fmtUSD(d.available);
+
+    // Win rate
+    document.getElementById('winRate').textContent = d.win_rate+'%';
+    document.getElementById('wrSub').textContent = `${d.wins}W / ${d.losses}L / ${d.bes}BE`;
+
+    document.getElementById('openCount').textContent = d.open_count;
+    document.getElementById('totalSig').textContent  = d.total_signals;
+
+    // Scan status
+    const scanStatus = document.getElementById('scanStatus');
+    const scanBar    = document.getElementById('scanBar');
+    const btn        = document.getElementById('scanBtn');
+    if(d.scanning){
+      scanStatus.textContent = 'Scanning...';
+      scanBar.style.display = 'block';
+      btn.disabled = true;
+    } else {
+      scanStatus.textContent = 'Live';
+      scanBar.style.display = 'none';
+      btn.disabled = false;
+    }
+    if(d.last_scan) document.getElementById('lastScan').textContent = 'Last: '+d.last_scan;
+
+    if(d.last_error){
+      const eb = document.getElementById('errBanner');
+      eb.textContent = '⚠️ '+d.last_error;
+      eb.style.display='block';
+    }
+  }catch(e){ console.error(e) }
+}
+
+async function fetchOpen(){
+  try{
+    const r = await fetch('/api/open');
+    const trades = await r.json();
+    const tbody  = document.getElementById('openBody');
+    document.getElementById('openCountLabel').textContent = trades.length+' trades';
+    if(!trades.length){
+      tbody.innerHTML='<tr><td colspan="12"><div class="empty"><div class="empty-icon">📡</div><div class="empty-text">No open trades. Click SCAN NOW to find signals</div></div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = trades.map(t=>`
+      <tr>
+        <td><span class="coin-chip">💎 ${t.coin.replace('USDT','')}</span></td>
+        <td><span class="dir-badge ${t.direction.toLowerCase()}">${t.direction}</span></td>
+        <td><span class="score-pill">${t.score}</span></td>
+        <td><b>${fmt(t.entry)}</b></td>
+        <td style="color:var(--green)">${fmt(t.tp1)}</td>
+        <td style="color:var(--green)">${fmt(t.tp2)}</td>
+        <td style="color:var(--red)">${fmt(t.sl)}</td>
+        <td>${fmtUSD(t.allocated_usd)} <span style="font-size:10px;color:var(--subtext)">(${t.alloc_pct}%)</span></td>
+        <td>1:${fmt(t.rr,1)}</td>
+        <td>${progressHTML(t)}</td>
+        <td style="font-size:10px;color:var(--subtext)">${t.sig_time}</td>
+        <td class="reasons-cell">${(t.reasons||[]).join(' · ')}</td>
+      </tr>`).join('');
+  }catch(e){ console.error(e) }
+}
+
+async function fetchHistory(){
+  try{
+    const r = await fetch('/api/history');
+    const sigs = await r.json();
+    const tbody = document.getElementById('histBody');
+    document.getElementById('histCountLabel').textContent = sigs.length+' signals';
+    if(!sigs.length){
+      tbody.innerHTML='<tr><td colspan="12"><div class="empty"><div class="empty-icon">📜</div><div class="empty-text">No signals yet</div></div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = sigs.map(t=>{
+      const pnl = parseFloat(t.pnl_usd||0);
+      return `<tr>
+        <td><span class="coin-chip">💎 ${t.coin.replace('USDT','')}</span></td>
+        <td><span class="dir-badge ${t.direction.toLowerCase()}">${t.direction}</span></td>
+        <td><span class="score-pill">${t.score}</span></td>
+        <td style="font-size:10px">${t.htf}</td>
+        <td><b>${fmt(t.entry)}</b></td>
+        <td style="color:var(--green)">${fmt(t.tp1)}</td>
+        <td style="color:var(--red)">${fmt(t.sl)}</td>
+        <td>${fmtUSD(t.allocated_usd)}</td>
+        <td class="${pnlClass(pnl)}">${pnlStr(pnl)}</td>
+        <td>${outcomeHTML(t.outcome||t.status)}</td>
+        <td style="font-size:10px;color:var(--subtext)">${t.sig_time}</td>
+        <td class="reasons-cell">${(t.reasons||[]).join(' · ')}</td>
+      </tr>`;
+    }).join('');
+  }catch(e){ console.error(e) }
+}
+
+async function fetchClosed(){
+  try{
+    const r = await fetch('/api/closed');
+    const trades = await r.json();
+    const tbody = document.getElementById('closedBody');
+    document.getElementById('closedCountLabel').textContent = trades.length+' closed';
+    if(!trades.length){
+      tbody.innerHTML='<tr><td colspan="10"><div class="empty"><div class="empty-icon">🔒</div><div class="empty-text">No closed trades yet</div></div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = trades.map(t=>{
+      const pnl = parseFloat(t.pnl_usd||0);
+      return `<tr>
+        <td><span class="coin-chip">💎 ${t.coin.replace('USDT','')}</span></td>
+        <td><span class="dir-badge ${t.direction.toLowerCase()}">${t.direction}</span></td>
+        <td><span class="score-pill">${t.score}</span></td>
+        <td><b>${fmt(t.entry)}</b></td>
+        <td>${fmtUSD(t.allocated_usd)}</td>
+        <td class="${pnlClass(pnl)}">${pnlStr(pnl)}</td>
+        <td>${outcomeHTML(t.outcome)}</td>
+        <td style="font-size:10px;color:var(--subtext)">${t.open_time||t.sig_time||'—'}</td>
+        <td style="font-size:10px;color:var(--subtext)">${t.close_time||'—'}</td>
+        <td class="reasons-cell">${(t.reasons||[]).join(' · ')}</td>
+      </tr>`;
+    }).join('');
+  }catch(e){ console.error(e) }
+}
+
+async function triggerScan(){
+  document.getElementById('scanBtn').disabled=true;
+  document.getElementById('scanStatus').textContent='Scanning...';
+  document.getElementById('scanBar').style.display='block';
+  await fetch('/api/scan_now');
+}
+
+async function refresh(){
+  await fetchState();
+  await fetchOpen();
+  if(currentTab==='history') await fetchHistory();
+  if(currentTab==='closed')  await fetchClosed();
+}
+
+// On tab click, fetch that tab's data
+document.querySelectorAll('.tab').forEach((btn,i)=>{
+  const tabs=['open','history','closed'];
+  btn.addEventListener('click',()=>{
+    if(tabs[i]==='history') fetchHistory();
+    if(tabs[i]==='closed')  fetchClosed();
+  });
+});
+
+// Init
+refresh();
+setInterval(refresh, 30000);  // 30s auto-refresh
+</script>
+</body>
+</html>
