@@ -592,12 +592,15 @@ def run_backtest_thread(start_date, end_date):
                 f"💵 Balance: `${bm.balance:.2f}` | Available: `${bm.available():.2f}`"
             )
 
+            neutral_ct=0; scanned_ct=0
             for coin in active:
                 if not bm.can_open(): break
                 try:
+                    scanned_ct+=1
                     htf_trend,htf_str=get_htf_trend(coin,end_ms=end_ms)
-                    if htf_trend=="NEUTRAL": continue
+                    if htf_trend=="NEUTRAL": neutral_ct+=1; continue
 
+                    # Fetch 700 bars ending 72h after day end (for outcome checking)
                     df_full=download_data(coin,interval="1h",limit=DATA_LIMIT,
                                          end_ms=end_ms+72*3600_000)
                     if df_full is None or len(df_full)<100: continue
@@ -607,6 +610,10 @@ def run_backtest_thread(start_date, end_date):
 
                     mask=(df_full['Open_time']>=start_ms)&(df_full['Open_time']<=end_ms)
                     targets=df_full.index[mask].tolist()
+                    # Fallback: use last 24 candles before end_ms if mask empty
+                    if not targets:
+                        fb=df_full[df_full['Open_time']<=end_ms]
+                        targets=list(fb.index[-24:]) if len(fb)>0 else []
                     if not targets: continue
 
                     last_sig={"LONG":-99,"SHORT":-99}
@@ -672,17 +679,7 @@ def run_backtest_thread(start_date, end_date):
                                 f"_{' | '.join(reasons[:5])}_"
                             )
 
-                            chart_path=build_chart(coin,df_ind,i,entry,tp1,tp2,sl,
-                                direction,score,outcome,result_pct,reasons,
-                                alloc_usd,bal_before,new_bal)
-
-                            if chart_path and os.path.exists(chart_path):
-                                sent=send_telegram_photo(chart_path,msg)
-                                try: os.remove(chart_path)
-                                except: pass
-                                if not sent: send_telegram_alert(msg)
-                            else:
-                                send_telegram_alert(msg)
+                            send_telegram_alert(msg)
 
                             rec={
                                 "date":date_str,"coin":coin,"direction":direction,
@@ -725,7 +722,11 @@ def run_backtest_thread(start_date, end_date):
                     +"\n".join(lines)
                 )
             else:
-                send_telegram_alert(f"📅 *{date_str}* — No signals\nBalance: `${bm.balance:.2f}`")
+                send_telegram_alert(
+                    f"📅 *{date_str}* — No signals found\n"
+                    f"Scanned:`{scanned_ct}` coins | Neutral HTF:`{neutral_ct}`\n"
+                    f"Balance:`${bm.balance:.2f}`"
+                )
 
             time.sleep(1.0)
 
